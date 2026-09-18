@@ -10,7 +10,10 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-
+from latent.bounds import (
+    LatentBox,
+    GaussianLatentSpace,
+)
 
 def parser():
     p = argparse.ArgumentParser(
@@ -107,11 +110,6 @@ def parser():
             s.add_argument(
                 "--initial",
                 type=int,
-            )
-
-            s.add_argument(
-                "--radius",
-                type=float,
             )
 
             s.add_argument(
@@ -283,18 +281,6 @@ def load_config(args):
                 "Select distinct targets"
             )
 
-        radius = config["radius"]
-
-        if (
-            radius is None
-            or not math.isfinite(radius)
-            or not 0 < radius <= 2
-        ):
-            raise ValueError(
-                "Protein POC requires explicit "
-                "--radius in (0, 2]; "
-                "it is uncalibrated"
-            )
 
         if not (
             2
@@ -541,19 +527,10 @@ def run(args):
                     ],
                 )
 
-                z0 = torch.randn(
+                box = GaussianLatentSpace(
                     prepared.latent_shape,
-                    generator=torch.Generator().manual_seed(
-                        seed
-                    ),
-                    dtype=torch.float32,
+                    eps=config["latent_eps"],
                 )
-
-                box = LatentBox(
-                    z0,
-                    config["radius"],
-                )
-
                 oracle = StructuralOracle(
                     target.reference,
                     target.sequence,
@@ -588,14 +565,7 @@ def run(args):
                     objective_name=config[
                         "objective"
                     ],
-                    calibration={
-                        "status": (
-                            "uncalibrated_pilot"
-                        ),
-                        "radius": config[
-                            "radius"
-                        ],
-                    },
+                    latent_search=box.identity,
                 )
 
             run_methods(

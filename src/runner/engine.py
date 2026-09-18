@@ -11,7 +11,10 @@ import torch
 from baselines.sobol import suggest_sobol
 from dsp.optimize_acq import AcquisitionSettings
 from dsp.priors import lengthscale_prior_parameters
-from dsp.sampling import initial_design
+from dsp.sampling import (
+    initial_design,
+    gaussian_initial_design,
+)
 from dsp.state import OptimizationState
 from dsp.tools import OptimizationBackend
 from targets.manifest import sha256
@@ -83,7 +86,20 @@ def _shared_initial(directory, box, generator, oracle, evaluator, initial, seed,
         return torch.empty((0, box.dimension), dtype=torch.float64), [], None
     shared=OptimizationState(directory/"shared_initial",dimension=box.dimension,budget=initial,metadata=context)
     shared.recover_interrupted()
-    design=initial_design(box.dimension,initial,seed)
+    
+    if box.identity["type"] == "truncated_standard_normal_icdf":
+        design = gaussian_initial_design(
+            box.dimension,
+            initial,
+            seed,
+        )
+    else:
+        design = initial_design(
+            box.dimension,
+            initial,
+            seed,
+        )
+
     initial_backend=OptimizationBackend(shared,box,generator,oracle,seed=seed,evaluator=evaluator)
     for index,point in enumerate(design):
         if index < shared.used:
@@ -96,7 +112,18 @@ def _shared_initial(directory, box, generator, oracle, evaluator, initial, seed,
         except ValueError as exc:
             if str(exc)!="Unknown candidate ID":
                 raise
-            candidate_id=shared.add_candidate(point,{"source":"initial_center" if index==0 else "initial_sobol"})
+            candidate_id=shared.add_candidate(point,{
+                "source": (
+                    "initial_sobol"
+                    if box.identity["type"]
+                    == "truncated_standard_normal_icdf"
+                    else (
+                        "initial_center"
+                        if index == 0
+                        else "initial_sobol"
+                    )
+                )
+            })
         initial_backend.evaluate(candidate_id)
     initial_results=shared.trials()
     initial_x=torch.stack([shared.candidate(t["candidate_id"]) for t in initial_results])
@@ -168,8 +195,16 @@ def _run_method(state, method, context, box, generator, oracle, evaluator, save_
         incumbent = state.incumbent()
         old_best=incumbent["objective"] if incumbent else None
         agent_info=None
-        if method=="sobol":
-            candidate_id=suggest_sobol(state,initial_count=initial,seed=seed)
+        if method == "sobol":
+            candidate_id = suggest_sobol(
+                state,
+                initial_count=initial,
+                seed=seed,
+                shared_initial_has_center=(
+                    box.identity["type"]
+                    == "affine_box"
+                ),
+            )
         elif method=="ax":
             candidate_id=ax_session.suggest(state,seed=seed)
         elif method=="agentic_dsp":

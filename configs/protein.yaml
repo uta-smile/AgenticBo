@@ -6,7 +6,7 @@ budget: 20
 initial: 5
 objective: tm
 reference_mode: strict
-radius: null  # Required: explicit exploratory radius, not calibrated.
+latent_eps: 1.0e-6
 device: cuda:0
 threads: 4
 fit_maxiter: 100
