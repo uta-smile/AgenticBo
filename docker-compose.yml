@@ -1,0 +1,52 @@
+# Usage:
+#   docker-compose build
+#   docker-compose run --rm bo python -m agenticbo benchmark --problems branin_2d \
+#     --seeds 0 --methods sobol dsp_gp --budget 8 --output outputs/smoke
+#
+# GPU access relies on the nvidia runtime, which is already this host's default
+# runtime. NVIDIA_DISABLE_REQUIRE is required because the 465 driver advertises
+# CUDA 11.3 and the toolkit would otherwise refuse the 11.8 image.
+services:
+  bo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentic-bo:cu118
+    runtime: nvidia
+    # The llama.cpp server binds to 127.0.0.1, so it is unreachable from a
+    # bridge network -- a container on the default bridge gets "connection
+    # refused" via the gateway. Sharing the host network stack lets
+    # SARA_BASE_URL stay http://127.0.0.1:8080/v1, identical to a host run.
+    network_mode: host
+    # Run as the host user so files written into the bind-mounted outputs/ and
+    # .cache/ are owned by you, not root. Override with HOST_UID / HOST_GID.
+    user: "${HOST_UID:-1015}:${HOST_GID:-1015}"
+    environment:
+      # That user has no home directory in the image, so point the libraries
+      # that insist on one at a writable path.
+      HOME: /tmp
+      MPLCONFIGDIR: /tmp/matplotlib
+      # /workspace itself is image-owned; only its subdirectories are mounted,
+      # so point pytest's cache at a writable path.
+      PYTEST_ADDOPTS: -o cache_dir=/tmp/pytest_cache
+      NVIDIA_VISIBLE_DEVICES: ${GPUS:-all}
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      NVIDIA_DISABLE_REQUIRE: "1"
+      SARA_BASE_URL: ${SARA_BASE_URL:-http://127.0.0.1:8080/v1}
+      SARA_MODEL: ${SARA_MODEL:-qwen3.5:9b}
+      SARA_API_KEY: ${SARA_API_KEY:-}
+    volumes:
+      # Source is mounted so edits take effect without a rebuild.
+      - ./src:/workspace/src
+      - ./tests:/workspace/tests
+      - ./configs:/workspace/configs
+      - ./scripts:/workspace/scripts
+      - ./prompts:/workspace/prompts
+      - ./data:/workspace/data
+      - ./inputs:/workspace/inputs
+      - ./reference:/workspace/reference
+      - ./outputs:/workspace/outputs
+      # Boltz weights are large; keep them on the host SSD across rebuilds.
+      - ./.cache:/workspace/.cache
+    working_dir: /workspace
+    shm_size: "8gb"

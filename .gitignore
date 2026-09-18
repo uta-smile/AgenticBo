@@ -31,3 +31,6 @@ inputs/*
 !inputs/README.md
 reference/*
 !reference/README.md
+
+# Docker build context leftovers.
+.docker-cache/

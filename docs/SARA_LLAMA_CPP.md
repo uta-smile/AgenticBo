@@ -18,6 +18,30 @@ No host glibc or NVIDIA driver was upgraded.
 scripts/serve_sara_llamacpp.sh
 ```
 
+## Warning: the currently running server cannot be restarted
+
+A `llama-server` process is live on `127.0.0.1:8080` serving `qwen3.5:9b`
+(Q4_K_M, 8.95B parameters, 5.67 GB, `n_ctx` 8192), holding 5.67 GB on GPU 3.
+It works, and tool calling round-trips correctly.
+
+But it was started from a previous copy of this checkout, and both its binary
+and its model file are gone from disk. `/proc/<pid>/exe` and `/proc/<pid>/cwd`
+both read `(deleted)`:
+
+```
+.cache/llama.cpp/build/bin/llama-server   # deleted
+.cache/models/Qwen3.5-9B-Q4_K_M.gguf      # deleted
+```
+
+The process keeps running because Linux holds the deleted inodes open. **If it
+is stopped, it cannot be started again** until llama.cpp is rebuilt and the GGUF
+re-downloaded. Do not kill it, reboot, or restart it with different flags unless
+you are prepared to rebuild both. Recovering the model file from the live
+process is possible in principle but not something to rely on.
+
+This is also why the Docker service uses `network_mode: host` rather than asking
+you to rebind the server to `0.0.0.0`.
+
 The launcher reserves GPU 3 for Sara. Use GPUs 0–2 for concurrent Boltz jobs;
 the original four-GPU suite would otherwise compete with Sara on GPU 3.
 `SARA_GPU` can select another GPU. Defaults are one request at a time, 8192
@@ -25,22 +49,29 @@ context tokens, Flash Attention off, Jinja tool calling, and reasoning on with
 a 256-token thinking budget. The client requests at most 1024 output tokens
 per response and uses a 600-second timeout for this hardware profile.
 
-The project `.env` selects the endpoint/model. `run_poc.sh` and `run_suite.sh`
-load it. For direct Python commands, export it first:
+The project `.env` selects the endpoint/model. Export it before running
+commands directly:
 
 ```bash
 set -a
 source .env
 set +a
-.venv/bin/python scripts/smoke_sara.py
 ```
 
-The smoke test first checks `predict` and `EVALUATE` tool serialization and a
-tool-result round trip. It then asks the actual Sara controller to select a
-candidate using a real GP fitted to five synthetic observations. No Boltz model
-is loaded, no structure is generated, and no protein evaluation is charged.
-The result and visible agent trace are saved under `outputs/sara_llamacpp_smoke`.
-Use `--output` with a fresh path for repeat probes.
+To check the endpoint end to end without loading Boltz or charging a protein
+evaluation, run a short synthetic benchmark with the agentic method:
+
+```bash
+.venv/bin/python -m agenticbo benchmark --problems branin_2d --seeds 0 \
+  --methods agentic_dsp --budget 8 --output outputs/sara_probe
+```
+
+This exercises tool serialization, the tool-result round trip, and a real GP
+fitted to the shared initial observations. The agent trace is saved under the
+output path. Use a fresh path for repeat probes.
+
+From inside the Docker container, `127.0.0.1` is the container; see
+[DOCKER.md](DOCKER.md) for the `host.docker.internal` endpoint.
 
 The initial live probe passed in 60.6 seconds. In its natural controller turn,
 Sara requested `suggest_local` and selected that candidate instead of the initial

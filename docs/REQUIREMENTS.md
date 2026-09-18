@@ -1,3 +1,12 @@
+> **ARCHIVED — historical record, not current instructions.**
+>
+> This is the original full specification. It describes files and workflows that
+> no longer exist (`run_target.py`, `run_suite.py`, `configs/poc_v1.yaml`, the
+> `scripts/smoke_*.py` set, the multi-GPU suite and the radius-calibration
+> protocol). Kept for provenance and for the paper-facing requirements it
+> records. For how the code works today, see [../README.md](../README.md) and
+> [PAPER_COMPARISON.md](PAPER_COMPARISON.md).
+
 # Agentic DSP-BO for Direct Protein 3D Latent-Space Target Matching
 
 ## 1. Main research question
