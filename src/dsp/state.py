@@ -10,12 +10,12 @@ import socket
 import sqlite3
 import time
 from contextlib import contextmanager
-
+import platform
 import numpy as np
 import torch
 
 from oracle.objectives import DEFAULT_OBJECTIVE, objective_value, validate_objective
-
+import psutil
 
 class BudgetExhausted(RuntimeError):
     pass
@@ -23,10 +23,30 @@ class BudgetExhausted(RuntimeError):
 
 def process_identity(pid: int | None = None) -> dict:
     pid = os.getpid() if pid is None else pid
-    return {"pid": pid, "host": socket.gethostname(),
-            "boot": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+
+    if platform.system() == "Linux":
+        return {
+            "pid": pid,
+            "host": socket.gethostname(),
+            "boot": Path(
+                "/proc/sys/kernel/random/boot_id"
+            ).read_text().strip(),
             "pid_namespace": os.readlink(f"/proc/{pid}/ns/pid"),
-            "start": Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]}
+            "start": Path(
+                f"/proc/{pid}/stat"
+            ).read_text().rsplit(")", 1)[1].split()[19],
+        }
+
+    # Windows/macOS fallback
+    process = psutil.Process(pid)
+
+    return {
+        "pid": pid,
+        "host": socket.gethostname(),
+        "boot": str(psutil.boot_time()),
+        "pid_namespace": None,
+        "start": str(process.create_time()),
+    }
 
 
 def process_alive(owner: dict) -> bool | None:

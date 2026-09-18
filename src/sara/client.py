@@ -7,7 +7,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class SaraClient:
     def __init__(self, base_url: str, model: str, api_key: str | None = None, timeout: float = 120,

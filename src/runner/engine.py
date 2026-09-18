@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-import fcntl
+# import fcntl
+from filelock import FileLock, Timeout
 from pathlib import Path
 import time
 
@@ -157,11 +158,16 @@ def _run_methods(*, directory: Path, box, generator, oracle, metadata: dict, tar
 
 
 def run_methods(**kwargs):
-    directory=Path(kwargs["directory"])
-    directory.mkdir(parents=True,exist_ok=True)
-    with (directory/"run.lock").open("a") as handle:
-        try:
-            fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise RuntimeError("This target/seed run already has a live runner") from exc
-        return _run_methods(**kwargs)
+    directory = Path(kwargs["directory"])
+    directory.mkdir(parents=True, exist_ok=True)
+
+    lock = FileLock(directory / "run.lock", timeout=0)
+
+    try:
+        with lock:
+            return _run_methods(**kwargs)
+
+    except Timeout as exc:
+        raise RuntimeError(
+            "This target/seed run already has a live runner"
+        ) from exc
