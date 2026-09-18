@@ -9,6 +9,7 @@ import time
 import torch
 
 from baselines.sobol import suggest_sobol
+from baselines.random_search import suggest_random
 from dsp.optimize_acq import AcquisitionSettings
 from dsp.priors import lengthscale_prior_parameters
 from dsp.sampling import (
@@ -22,7 +23,7 @@ from oracle.objectives import DEFAULT_OBJECTIVE, validate_objective
 from sara.history import finish_history
 
 METHODS = ("sobol","vanilla_gp","dsp_gp","agentic_dsp")
-AVAILABLE_METHODS = (*METHODS,"ax")
+AVAILABLE_METHODS = (*METHODS,"random","ax","ax_saasbo")
 
 
 def _run_methods(*, directory: Path, box, generator=None, oracle=None, evaluator=None, save_gp=True, metadata: dict, target_id: str,
@@ -33,16 +34,37 @@ def _run_methods(*, directory: Path, box, generator=None, oracle=None, evaluator
     if "agentic_dsp" in methods and controller is None:
         raise ValueError("Agentic DSP requires a real controller; no automatic fixed-policy substitute")
     directory=Path(directory)
-    context={"target_id":target_id,"target_length":target_length,"seed":seed,"metadata":metadata,
-             "objective":"scalar" if evaluator is not None else validate_objective(getattr(oracle,"objective",DEFAULT_OBJECTIVE)),
-             "native_shape":list(box.native_shape),"native_radius":box.radius,
-             "budget":budget,"initial":initial,"acquisition_settings":acquisition_settings.__dict__,
-             "fit_maxiter":fit_maxiter}
+    context={
+        "target_id": target_id,
+        "target_length": target_length,
+        "seed": seed,
+        "metadata": metadata,
+        "objective": (
+            "scalar"
+            if evaluator is not None
+            else validate_objective(
+                getattr(
+                    oracle,
+                    "objective",
+                    DEFAULT_OBJECTIVE,
+                )
+            )
+        ),
+        "native_shape": list(box.native_shape),
+        "latent_space": box.identity,
+        "budget": budget,
+        "initial": initial,
+        "acquisition_settings": acquisition_settings.__dict__,
+        "fit_maxiter": fit_maxiter,
+    }
     if evaluator is not None:
         context.update(format_version=2, save_gp=save_gp, methods=list(methods))
-    if "ax" in methods:
+    if {"ax", "ax_saasbo"} & set(methods):
         from baselines.ax_bo import ax_identity
-        context["ax"]=ax_identity()
+        if "ax" in methods:
+            context["ax"] = ax_identity()
+        if "ax_saasbo" in methods:
+            context["ax_saasbo"] = ax_identity("saasbo")
     directory.mkdir(parents=True,exist_ok=True)
     prior_report={"actual":lengthscale_prior_parameters(box.dimension),
                   "examples":{str(d):lengthscale_prior_parameters(d) for d in (256,1024,6392)}}
@@ -52,12 +74,6 @@ def _run_methods(*, directory: Path, box, generator=None, oracle=None, evaluator
         raise ValueError("Run context changed; use a new output directory")
     if not context_path.exists():
         context_path.write_text(json.dumps(context,indent=2,allow_nan=False)+"\n")
-    z0_path=directory/"z0.pt"
-    if z0_path.exists():
-        if not torch.equal(torch.load(z0_path,weights_only=True),box.z0.reshape(box.native_shape)):
-            raise ValueError("Run z0 changed; all methods must use the exact same initialization")
-    else:
-        torch.save(box.z0.reshape(box.native_shape),z0_path)
     initial_x, initial_results, initial_hash = _shared_initial(
         directory, box, generator, oracle, evaluator, initial, seed, context)
     reports=[]
@@ -72,9 +88,7 @@ def _run_methods(*, directory: Path, box, generator=None, oracle=None, evaluator
             state.close()
     summary={"target_id":target_id,"seed":seed,"dimension":box.dimension,"initial":initial,"budget":budget,
              "methods":list(methods),"completed":all(r["completed"] for r in reports),
-             "shared_initial_physical_calls":initial,"shared_initial_sha256": (
-                None if method == "ax" else initial_hash
-            ),
+             "shared_initial_physical_calls":initial,"shared_initial_sha256":initial_hash,
              "total_physical_calls":initial+sum(r["physical_method_calls"] for r in reports)}
     summary["charged_method_evaluations"]=sum(r["budget_used"] for r in reports)
     (directory/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
@@ -149,21 +163,17 @@ def _run_method(state, method, context, box, generator, oracle, evaluator, save_
     initial, budget, seed = context["initial"], context["budget"], context["seed"]
     target_id, target_length = context["target_id"], context["target_length"]
     state.recover_interrupted()
-    if method != "ax":
-        if state.used == 0 and initial:
-            state.import_initial(
-                initial_x,
-                initial_results,
-                initial_hash,
-            )
+    if state.used == 0 and initial:
+        state.import_initial(
+            initial_x,
+            initial_results,
+            initial_hash,
+        )
 
-        if (
-            state.get_setting("initial_source_sha256")
-            != initial_hash
-        ):
-            raise ValueError(
-                "Method does not share the exact frozen initial evaluations"
-            )
+    if initial and state.get_setting("initial_source_sha256") != initial_hash:
+        raise ValueError(
+            "Method does not share the exact frozen initial evaluations"
+        )
 
     # Agentic DSP controller identity check.
     if method == "agentic_dsp":
@@ -195,7 +205,13 @@ def _run_method(state, method, context, box, generator, oracle, evaluator, save_
         incumbent = state.incumbent()
         old_best=incumbent["objective"] if incumbent else None
         agent_info=None
-        if method == "sobol":
+        if method == "random":
+            candidate_id = suggest_random(
+                state,
+                initial_count=initial,
+                seed=seed,
+            )
+        elif method == "sobol":
             candidate_id = suggest_sobol(
                 state,
                 initial_count=initial,
@@ -205,7 +221,11 @@ def _run_method(state, method, context, box, generator, oracle, evaluator, save_
                     == "affine_box"
                 ),
             )
-        elif method=="ax":
+        elif method in {"ax", "ax_saasbo"}:
+            from baselines.ax_bo import AxSession
+            ax_session = ax_session or AxSession(
+                variant="saasbo" if method == "ax_saasbo" else "default"
+            )
             candidate_id=ax_session.suggest(state,seed=seed)
         elif method=="agentic_dsp":
             candidate_id,agent_info=controller.select(backend,target_id=target_id,target_length=target_length,
@@ -228,7 +248,7 @@ def _run_method(state, method, context, box, generator, oracle, evaluator, save_
                 handle.write(json.dumps(agent_info,allow_nan=False)+"\n")
         print(json.dumps({"method":method,"target":target_id,"seed":seed,"used":state.used,
             "budget":budget,"objective":result["objective"],"best":(state.incumbent() or {}).get("objective")}),flush=True)
-    if method not in {"sobol","ax"} and len(state.observations()[0]) >= backend.warmup:
+    if method not in {"sobol", "random", "ax", "ax_saasbo"} and len(state.observations()[0]) >= backend.warmup:
         backend.fit()  # Preserve final GP/ARD diagnostics even after the last evaluation.
     trials=state.trials()
     stop=state.get_setting("stop_decision")

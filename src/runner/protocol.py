@@ -76,6 +76,8 @@ def verify_calibration(path:Path,targets:list,generator_config:dict):
         raise ValueError("Frozen radius is not the smallest qualifying development radius")
     # The same generator and diffusion schedule apply to every method and target.
     keys=("checkpoint_sha256","sampling_steps","recycling_steps","sampler_seed","precision","use_kernels","diffusion_samples","sample_source_sha256","adapter_source_sha256","native_noise_source_sha256")
+    if "sampler_mode" in generator_config or any("sampler_mode" in config for config in frozen["generator_configs"].values()):
+        keys += ("sampler_mode",)
     for config in frozen["generator_configs"].values():
         if any(k not in config or k not in generator_config or config[k]!=generator_config[k] for k in keys):
             raise ValueError("Benchmark generator differs from the calibrated generator")

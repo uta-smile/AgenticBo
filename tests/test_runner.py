@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import sqlite3
 
 import torch
 import pytest
@@ -118,3 +119,27 @@ def test_stop_history_resume_and_analysis(tmp_path):
         db.execute("DELETE FROM settings WHERE key='stop_decision'")
     with pytest.raises(ValueError,match='termination differs'):
         load_runs(tmp_path)
+
+
+def test_random_baseline_continues_after_shared_initialization(tmp_path):
+    generator = SyntheticGenerator()
+    kwargs = dict(
+        directory=tmp_path,
+        box=LatentBox(torch.zeros(1, 2, 3), .5),
+        generator=generator,
+        oracle=SyntheticOracle("tm"),
+        metadata={"kind": "random_baseline_test"},
+        target_id="fixture",
+        target_length=2,
+        seed=13,
+        budget=6,
+        initial=4,
+        methods=("random",),
+    )
+    report = run_methods(**kwargs)
+    assert report["completed"] and generator.calls == 6
+    with sqlite3.connect(tmp_path / "random" / "state.sqlite") as db:
+        rows = db.execute("SELECT info FROM candidates ORDER BY id").fetchall()
+    info = [json.loads(row[0]) for row in rows]
+    assert [row["source"] for row in info[-2:]] == ["random", "random"]
+    assert [row["random_index"] for row in info[-2:]] == [0, 1]

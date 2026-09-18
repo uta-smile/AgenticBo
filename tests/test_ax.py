@@ -57,3 +57,16 @@ def test_real_ax_proposals_share_budget_tm_scores_and_resume(tmp_path):
     assert report["objective"]=="tm" and len(report["summary"])==3
     assert (tmp_path/"analysis/best_tm.png").is_file()
     assert run_methods(**kwargs)["completed"] and generator.calls==11
+
+
+def test_ax_saasbo_uses_separate_high_dimensional_generation_strategy(tmp_path):
+    from baselines.ax_bo import AxSession
+    from dsp.state import OptimizationState
+
+    state = OptimizationState(tmp_path, dimension=30, budget=6, metadata={"objective": "scalar"})
+    session = AxSession(variant="saasbo")
+    session._create(state, seed=0)
+    steps = session.client.generation_strategy._steps
+    assert [step.model.name for step in steps] == ["SOBOL", "SAASBO"]
+    assert steps[0].num_trials == 5
+    state.close()

@@ -79,10 +79,8 @@ class SaraController:
                 "objective",
                 backend.state.objective,
             ),
-            "latent_bounds": {
-                "normalized": [0, 1],
-                "native_radius": backend.box.radius,
-                "center_id": "saved_z0",
+            "latent_space": {
+                **backend.box.identity,
                 "native_shape": list(
                     backend.box.native_shape
                 ),

@@ -40,7 +40,14 @@ def load_v2(root):
             raise ValueError(f"Invalid saved candidate vectors: {path}")
         if context["initial"]:
             artifact = path.parent.parent / "shared_initial" / "observations.pt"
-            if sha256(artifact) != run["shared_initial_sha256"] or settings.get("initial_source_sha256") != run["shared_initial_sha256"]:
+            # Ax uses the same shared initial candidates/results, but its
+            # backend does not persist the runner setting that the native
+            # methods use to record that source hash.  The artifact hash and
+            # candidate/result equality checks below still validate Ax's
+            # shared initialization identity.
+            if (sha256(artifact) != run["shared_initial_sha256"]
+                    or (run["method"] not in {"ax", "ax_saasbo"}
+                        and settings.get("initial_source_sha256") != run["shared_initial_sha256"])):
                 raise ValueError("Shared initialization identity changed")
             shared = torch.load(artifact, weights_only=True)
             if not np.array_equal(np.asarray(vectors[:context["initial"]]), shared["x"].numpy()):

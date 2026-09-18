@@ -15,8 +15,9 @@ from analysis.aggregate import aggregate,load_runs
 from analysis.metrics import best_curve,evaluations_to_threshold
 from runner.engine import AVAILABLE_METHODS
 
-LABELS={"sobol":"Sobol","vanilla_gp":"Vanilla GP","dsp_gp":"DSP GP","agentic_dsp":"Agentic DSP","ax":"Ax 0.5 default"}
-COLORS=dict(zip(AVAILABLE_METHODS,["#64748b","#d97706","#2563eb","#7c3aed","#dc2626"]))
+LABELS={"sobol":"Sobol","vanilla_gp":"Vanilla GP","dsp_gp":"DSP GP","agentic_dsp":"Agentic DSP","random":"Random","ax":"Ax 0.5 default","ax_saasbo":"Ax SAASBO"}
+COLORS={"sobol":"#64748b","vanilla_gp":"#d97706","dsp_gp":"#2563eb","agentic_dsp":"#7c3aed",
+        "random":"#16a34a","ax":"#dc2626","ax_saasbo":"#0891b2"}
 
 
 def render(runs,output:Path):
@@ -75,7 +76,7 @@ def render(runs,output:Path):
     length_dir=output/"lengthscales"; length_dir.mkdir(exist_ok=True)
     kernel_rows=[]
     for run in runs:
-        if run["method"] in {"sobol","ax"}:
+        if run["method"] in {"sobol", "random", "ax", "ax_saasbo"}:
             continue
         fits=[torch.load(path,weights_only=True) for path in sorted((run["directory"]/"gp").glob("fit_*.pt"))]
         if not fits:
@@ -98,7 +99,7 @@ def render(runs,output:Path):
             fig.colorbar(mesh,ax=ax,label="Fraction of native dimensions")
             fig.tight_layout(); fig.savefig(length_dir/f"{run['target_id']}_seed_{run['seed']}_{run['method']}.png",dpi=160); plt.close(fig)
     fig,ax=plt.subplots(figsize=(8,5))
-    for method in [m for m in methods if m not in {"sobol","ax"}]:
+    for method in [m for m in methods if m not in {"sobol", "random", "ax", "ax_saasbo"}]:
         xs=sorted({n for m,n,v in kernel_rows if m==method})
         ys=[np.mean([v for m,n,v in kernel_rows if m==method and n==x]) for x in xs]
         ax.plot(xs,ys,label=LABELS[method],color=COLORS[method])

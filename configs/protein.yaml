@@ -5,7 +5,7 @@ output: outputs/protein
 budget: 20
 initial: 5
 objective: tm
-reference_mode: strict
+reference_mode: resolved
 latent_eps: 1.0e-6
 device: cuda:0
 threads: 4
@@ -19,3 +19,4 @@ generator:
   sampling_steps: 200
   recycling_steps: 3
   sampler_seed: 1729
+  sampler_mode: stochastic

@@ -61,7 +61,7 @@ def load_runs(root:Path,*,require_poc=False):
                 raise ValueError("Method initial scores differ from shared observations")
         if any(v.numel()!=run["dimension"] for v in vectors):
             raise ValueError("Trial vector lost native dimensions")
-        if run["method"] not in {"sobol","ax"}:
+        if run["method"] not in {"sobol", "random", "ax", "ax_saasbo"}:
             expected={f"fit_{n:04d}.pt" for n in range(run["initial"],len(rows)+1)}
             actual={p.name for p in (path.parent/"gp").glob("fit_*.pt")}
             if not expected<=actual:

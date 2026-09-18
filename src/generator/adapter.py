@@ -10,18 +10,26 @@ from pathlib import Path
 
 import torch
 
-from generator.native_noise import fixed_randomness, inject_native_noise, sampler_source_audit
+from generator.native_noise import (
+    fixed_randomness,
+    inject_native_noise,
+    inject_pf_ode_noise,
+    sampler_source_audit,
+)
 from generator.prepare import PreparedTarget
 from targets.manifest import sha256
 
 
 class Boltz2Adapter:
     def __init__(self, prepared: PreparedTarget, checkpoint: Path, *, device: str = "cuda:0",
-                 sampling_steps: int = 200, recycling_steps: int = 3, sampler_seed: int = 1729):
+                 sampling_steps: int = 200, recycling_steps: int = 3, sampler_seed: int = 1729,
+                 sampler_mode: str = "stochastic"):
         from boltz.main import Boltz2, Boltz2DiffusionParams, BoltzSteeringParams, MSAModuleArgs, PairformerArgsV2
 
         if sampling_steps < 2 or recycling_steps < 0:
             raise ValueError("Need at least two diffusion steps and nonnegative recycling")
+        if sampler_mode not in {"stochastic", "pf_ode"}:
+            raise ValueError("sampler_mode must be 'stochastic' or 'pf_ode'")
         if not checkpoint.is_file():
             raise FileNotFoundError(f"Missing Boltz2 checkpoint: {checkpoint}")
         # Required before CUDA context creation for deterministic cuBLAS.
@@ -29,13 +37,28 @@ class Boltz2Adapter:
         self.prepared, self.latent_shape = prepared, prepared.latent_shape
         self.device = torch.device(device)
         self.sampler_seed = sampler_seed
+        self.sampler_mode = sampler_mode
         self.calls = 0
+        diffusion_args = asdict(Boltz2DiffusionParams())
+        if sampler_mode == "pf_ode":
+            # The deterministic branch uses the unit-step denoiser ODE. The
+            # source transformation also enforces these values at sampling
+            # time, so the run cannot silently re-enable stochastic terms.
+            diffusion_args.update(
+                gamma_0=0.0,
+                noise_scale=0.0,
+                step_scale=1.0,
+                coordinate_augmentation=False,
+                alignment_reverse_diff=False,
+            )
         self.config = {
             "checkpoint_sha256": sha256(checkpoint), "sampling_steps": sampling_steps,
             "adapter_source_sha256": sha256(Path(__file__)),
             "native_noise_source_sha256": sha256(Path(__file__).with_name("native_noise.py")),
             "recycling_steps": recycling_steps, "sampler_seed": sampler_seed,
+            "sampler_mode": sampler_mode,
             "precision": "float32", "use_kernels": False, "diffusion_samples": 1,
+            "diffusion_process_args": diffusion_args,
         }
         self.model = Boltz2.load_from_checkpoint(
             checkpoint, strict=True, map_location="cpu", ema=False, use_kernels=False,
@@ -44,7 +67,7 @@ class Boltz2Adapter:
             predict_args={"recycling_steps": recycling_steps, "sampling_steps": sampling_steps,
                           "diffusion_samples": 1, "max_parallel_samples": 1,
                           "write_confidence_summary": True, "write_full_pae": False, "write_full_pde": False},
-            diffusion_process_args=asdict(Boltz2DiffusionParams()),
+            diffusion_process_args=diffusion_args,
             pairformer_args=asdict(PairformerArgsV2()),
             msa_args=asdict(MSAModuleArgs(subsample_msa=False, use_paired_feature=True)),
             steering_args=asdict(BoltzSteeringParams()),
@@ -65,8 +88,11 @@ class Boltz2Adapter:
         receipt_path = output_dir / "generation.json"
         receipt_path.write_text(json.dumps(receipt, indent=2) + "\n")
         try:
+            injector = (inject_native_noise
+                        if self.sampler_mode == "stochastic"
+                        else inject_pf_ode_noise)
             with fixed_randomness(self.sampler_seed), torch.inference_mode(), \
-                    inject_native_noise(self.model.structure_module, latent):
+                    injector(self.model.structure_module, latent):
                 # No Lightning Trainer: its Boltz2 CLI default is bf16-mixed.
                 prediction = self.model.predict_step(batch, 0)
             if prediction.get("exception"):

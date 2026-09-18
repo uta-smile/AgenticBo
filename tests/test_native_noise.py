@@ -9,7 +9,13 @@ import pytest
 import torch
 from boltz.model.modules.diffusionv2 import AtomDiffusion
 
-from generator.native_noise import NativeNoise, fixed_randomness, inject_native_noise, sampler_source_audit
+from generator.native_noise import (
+    NativeNoise,
+    fixed_randomness,
+    inject_native_noise,
+    inject_pf_ode_noise,
+    sampler_source_audit,
+)
 from latent.inspect import inspect_native
 
 
@@ -61,6 +67,38 @@ def test_different_latents_are_used_and_repeats_deterministic():
     assert torch.equal(results[0], results[1])
     assert not torch.equal(results[0], results[2])
     assert torch.isfinite(results[2]).all()
+
+
+def test_same_latent_changes_with_downstream_sampler_seed():
+    harness = SamplerHarness()
+    z = torch.randn(1, 32, 3)
+    with inject_native_noise(harness, z):
+        first = sample(harness, seed=19)
+    with inject_native_noise(harness, z):
+        second = sample(harness, seed=20)
+    assert not torch.equal(first, second)
+
+
+def test_pf_ode_same_latent_is_identical_across_sampler_seeds():
+    harness = SamplerHarness()
+    z = torch.randn(1, 32, 3)
+    with inject_pf_ode_noise(harness, z):
+        with fixed_randomness(19):
+            first = harness.sample(torch.ones(1, 32), steering_args=STEERING)["sample_atom_coords"]
+    with inject_pf_ode_noise(harness, z):
+        with fixed_randomness(20):
+            second = harness.sample(torch.ones(1, 32), steering_args=STEERING)["sample_atom_coords"]
+    assert torch.equal(first, second)
+
+
+def test_pf_ode_distinct_latents_remain_distinct():
+    harness = SamplerHarness()
+    z = torch.randn(1, 32, 3)
+    with inject_pf_ode_noise(harness, z):
+        first = harness.sample(torch.ones(1, 32), steering_args=STEERING)["sample_atom_coords"]
+    with inject_pf_ode_noise(harness, z + 0.1):
+        second = harness.sample(torch.ones(1, 32), steering_args=STEERING)["sample_atom_coords"]
+    assert not torch.equal(first, second)
 
 
 def test_every_coordinate_including_padding_reaches_initialization():

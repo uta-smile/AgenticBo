@@ -10,7 +10,11 @@ RMSD are diagnostics, not optimization objectives.
 
 Use the incumbent, uncertainty, compact lengthscale diagnostics, recent improvements,
 acquisition behavior, and remaining budget to choose global exploration or local refinement.
-Local searches still allow all dimensions to vary inside the configured native box.
+The global normalized domain [0,1]^D maps coordinate-wise through an
+inverse standard-normal CDF to Boltz-2's full native initial-noise space.
+Global proposals explore this full configured Gaussian latent distribution.
+Local searches refine around the incumbent in normalized coordinates while
+still allowing every latent dimension to vary.
 
 State includes measured trials D, persistent backend configuration c, target information K,
 and deliberation history H. Past tool calls and observations carry forward; older turns
@@ -22,8 +26,7 @@ Computational actions spend no black-box evaluations and do not advance the camp
 - propose: suggest, suggest_local.
 Predictions and acquisition scores are surrogate estimates, never measured TM-scores.
 
-An advisory DSP candidate is supplied. Use at most four computational tool calls per
-campaign step, conditioning each decision on the returned observations. Then select
+An advisory DSP candidate is supplied. Conditioning each decision on the returned observations. Then select
 exactly one terminal action as a standalone tool call:
 - EVALUATE with one backend candidate ID commits an expensive generation and oracle
   evaluation. Only this action consumes the remaining evaluation budget and advances t.

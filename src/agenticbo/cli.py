@@ -54,8 +54,10 @@ def parser():
             "--methods",
             nargs="+",
             choices=(
+                "random",
                 "sobol",
                 "ax",
+                "ax_saasbo",
                 "dsp_gp",
                 "agentic_dsp",
             ),
@@ -130,6 +132,14 @@ def parser():
 
             s.add_argument(
                 "--device",
+            )
+
+            s.add_argument(
+                "--sampler-mode",
+                choices=(
+                    "stochastic",
+                    "pf_ode",
+                ),
             )
 
     s = sub.add_parser("report")
@@ -208,15 +218,20 @@ def load_config(args):
                 else value
             )
 
+    if args.command == "protein" and args.sampler_mode is not None:
+        config["generator"]["sampler_mode"] = args.sampler_mode
+
     if (
         not config["methods"]
         or len(set(config["methods"]))
         != len(config["methods"])
         or set(config["methods"])
         - {
+            "random",
             "sobol",
-            "ax",
-            "dsp_gp",
+                "ax",
+                "ax_saasbo",
+                "dsp_gp",
             "agentic_dsp",
         }
     ):
@@ -370,7 +385,7 @@ def run(args):
         args.command,
     )
 
-    if "ax" in config["methods"]:
+    if {"ax", "ax_saasbo"} & set(config["methods"]):
         try:
             from ax.service.ax_client import AxClient  # noqa: F401
 
@@ -525,6 +540,10 @@ def run(args):
                     sampler_seed=g[
                         "sampler_seed"
                     ],
+                    sampler_mode=g.get(
+                        "sampler_mode",
+                        "stochastic",
+                    ),
                 )
 
                 box = GaussianLatentSpace(
