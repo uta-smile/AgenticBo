@@ -18,6 +18,13 @@ python -m agenticbo report outputs/benchmark_smoke
   --reference-mode resolved \
   --output outputs/22PE -->
 
+
+<!-- python benchmarks/paper_synthetic/run.py \
+  --problems ackley_10d ackley_20d \
+  --seeds 32 \
+  --methods sobol ax agentic_dsp \
+  --output outputs/benchmarkv2 -->
+
 The protein radius is an explicit exploratory choice. Register your sequence
 and reference first. See [the historical protocol](docs/LEGACY_PROTOCOL.md) for
 advanced calibration and multi-GPU experiments.
