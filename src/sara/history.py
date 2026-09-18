@@ -17,7 +17,7 @@ def finish_history(state, result=None):
         result=state.get_setting("stop_decision")
     if result is None:
         return
-    keys={"trial_id","candidate_id","objective","tm","lddt","rmsd","valid","error","reason","termination"}
+    keys={"trial_id","candidate_id","objective","tm","lddt","rmsd","valid","metrics","error","reason","termination"}
     pending["messages"].append({"role":"tool","tool_call_id":call["id"],
         "content":json.dumps({k:v for k,v in result.items() if k in keys},allow_nan=False)})
     with state.transaction():

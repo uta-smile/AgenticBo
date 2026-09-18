@@ -19,9 +19,8 @@ name = "agentic-protein-dsp-bo"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "biopython" },
-    { name = "boltz" },
     { name = "botorch" },
+    { name = "filelock" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
@@ -30,7 +29,6 @@ dependencies = [
     { name = "pyyaml" },
     { name = "requests" },
     { name = "scipy" },
-    { name = "tmtools" },
     { name = "torch" },
 ]
 
@@ -39,7 +37,9 @@ ax = [
     { name = "ax-platform" },
 ]
 boltz = [
+    { name = "biopython" },
     { name = "boltz" },
+    { name = "tmtools" },
 ]
 test = [
     { name = "pytest" },
@@ -48,10 +48,10 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "ax-platform", marker = "extra == 'ax'", specifier = "==0.5.0" },
-    { name = "biopython", specifier = "==1.84" },
-    { name = "boltz", specifier = ">=2.2.1" },
+    { name = "biopython", marker = "extra == 'boltz'", specifier = "==1.84" },
     { name = "boltz", marker = "extra == 'boltz'", specifier = "==2.2.1" },
     { name = "botorch", specifier = "==0.13.0" },
+    { name = "filelock", specifier = ">=3.13" },
     { name = "matplotlib", specifier = "==3.9.4" },
     { name = "numpy", specifier = ">=1.26,<2" },
     { name = "pandas", specifier = "==2.2.3" },
@@ -61,7 +61,7 @@ requires-dist = [
     { name = "pyyaml", specifier = "==6.0.2" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "scipy", specifier = "==1.13.1" },
-    { name = "tmtools", specifier = "==0.2.0" },
+    { name = "tmtools", marker = "extra == 'boltz'", specifier = "==0.2.0" },
     { name = "torch", specifier = "==2.6.0" },
 ]
 provides-extras = ["boltz", "test", "ax"]

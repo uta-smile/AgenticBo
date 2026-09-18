@@ -1,4 +1,4 @@
-"""Ax baseline for the Figure 5 synthetic reproduction.
+"""Ax baseline with saved generation state for safe process restarts.
 
 Protocol:
 - Ax owns its own initialization.
@@ -6,7 +6,8 @@ Protocol:
 - Trial 6 onward uses Ax's model-based default generation strategy.
 - No observations are shared with Sobol or Sara.
 
-The runner must call this method with initial=0.
+Synthetic runs use initial=0. Protein comparisons can import shared initial
+observations; those count toward the five-observation initialization.
 """
 
 import json
@@ -39,6 +40,17 @@ class AxSession:
     def _create(self, state, *, seed):
         from ax.service.ax_client import AxClient
         from ax.service.utils.instantiation import ObjectiveProperties
+
+        snapshot = state.directory / "ax" / f"before_eval_{state.used:04d}.json"
+        if state.used and snapshot.exists():
+            self.client = AxClient.load_from_json_file(str(snapshot))
+            self.names = [f"x_{i}" for i in range(state.dimension)]
+            last = state.trials()[-1]
+            self.pending = (state.candidate_info(last["candidate_id"])["ax_trial_index"], last["candidate_id"])
+            self.complete(last["candidate_id"], last)
+            return
+        if state.used and state.get_setting("initial_source_sha256") is None:
+            raise ValueError("Ax resume requires its saved generation snapshot; use a new output directory")
 
         # IMPORTANT:
         # Do not make this depend on state.used.
@@ -76,7 +88,7 @@ class AxSession:
             # Paper protocol:
             # exactly 5 Ax-owned Sobol initialization trials.
             choose_generation_strategy_kwargs={
-                "num_initialization_trials": 5
+                "num_initialization_trials": max(0, 5 - state.used)
             },
         )
 
@@ -104,6 +116,9 @@ class AxSession:
                 )
             )
 
+            if not trial.get("valid"):
+                client.log_trial_failure(index)
+                continue
             client.complete_trial(
                 index,
                 raw_data={
@@ -272,6 +287,10 @@ class AxSession:
                 "its pending candidate"
             )
 
+        if not result.get("valid"):
+            self.client.log_trial_failure(self.pending[0])
+            self.pending = None
+            return
         self.client.complete_trial(
             self.pending[0],
             raw_data={

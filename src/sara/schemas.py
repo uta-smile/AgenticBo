@@ -14,12 +14,12 @@ TOOLS = [
         "radius":{"type":"number","minimum":0.000001,"maximum":1}},["radius"]),
     tool("predict","Posterior mean and standard deviation",{"candidate_id":ID},["candidate_id"]),
     tool("acquisition_score","Acquisition score of an existing candidate",{"candidate_id":ID},["candidate_id"]),
-    tool("incumbent","Current best observed structural scores and candidate ID"),
+    tool("incumbent","Current best observed objective, metrics, and candidate ID"),
     tool("diagnostics","Compact GP diagnostics, never full ARD vectors"),
     tool("trials","Recent observed trials",{"last_n":{"type":"integer","minimum":1,"maximum":20}}),
     tool("set_search_radius","Set the active normalized half-width in every dimension",{
         "radius":{"type":"number","minimum":0.000001,"maximum":1}},["radius"]),
-    tool("reset_bounds","Restore the original calibrated full-D box"),
+    tool("reset_bounds","Restore the original full-D box"),
     tool("set_acquisition","Choose LogEI or UCB",{
         "name":{"type":"string","enum":["log_ei","ucb"]},
         "beta":{"type":"number","exclusiveMinimum":0}},["name"]),

@@ -27,7 +27,7 @@ class SaraController:
         retained_history=history_messages(backend.state)
         advisory=backend.suggest()
         context={"target_id":target_id,"target_length":target_length,"D":backend.state.dimension,
-                 "objective":backend.state.objective,
+                 "objective":getattr(getattr(backend.evaluator, "oracle", None), "objective", backend.state.objective),
                  "computational_tool_limit":self.max_tools,
                  "latent_bounds":{"normalized":[0,1],"native_radius":backend.box.radius,
                                   "center_id":"saved_z0","native_shape":list(backend.box.native_shape)},

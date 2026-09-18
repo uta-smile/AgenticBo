@@ -10,7 +10,7 @@ RMSD are diagnostics, not optimization objectives.
 
 Use the incumbent, uncertainty, compact lengthscale diagnostics, recent improvements,
 acquisition behavior, and remaining budget to choose global exploration or local refinement.
-Local searches still allow all dimensions to vary inside the calibrated native box.
+Local searches still allow all dimensions to vary inside the configured native box.
 
 State includes measured trials D, persistent backend configuration c, target information K,
 and deliberation history H. Past tool calls and observations carry forward; older turns

@@ -1,5 +1,5 @@
 import hashlib
-from importlib.metadata import version
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 
 
@@ -11,4 +11,10 @@ def source_digest(directory:Path):
 
 
 def software_versions():
-    return {name:version(name) for name in ("torch","boltz","botorch","gpytorch","numpy","scipy","biopython","tmtools")}
+    result = {}
+    for name in ("torch","boltz","botorch","gpytorch","numpy","scipy","biopython","tmtools","ax-platform"):
+        try:
+            result[name] = version(name)
+        except PackageNotFoundError:
+            pass
+    return result

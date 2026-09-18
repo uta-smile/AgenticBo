@@ -1,0 +1,21 @@
+manifest: data/targets/manifest.csv
+seeds: [0]
+methods: [sobol, dsp_gp, agentic_dsp]
+output: outputs/protein
+budget: 20
+initial: 5
+objective: tm
+reference_mode: strict
+radius: null  # Required: explicit exploratory radius, not calibrated.
+device: cuda:0
+threads: 4
+fit_maxiter: 100
+acquisition: {raw_samples: 1024, num_restarts: 16, maxiter: 100}
+max_tools: 4
+save_gp: false
+generator:
+  checkpoint: .cache/boltz/boltz2_conf.ckpt
+  cache: .cache/boltz
+  sampling_steps: 200
+  recycling_steps: 3
+  sampler_seed: 1729

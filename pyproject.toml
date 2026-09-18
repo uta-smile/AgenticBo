@@ -11,20 +11,18 @@ dependencies = [
     "numpy>=1.26,<2",
     "PyYAML==6.0.2",
     "torch==2.6.0",
-    "biopython==1.84",
     "scipy==1.13.1",
-    "tmtools==0.2.0",
     "botorch==0.13.0",
     "matplotlib==3.9.4",
     "requests>=2.32.3",
     "python-dotenv>=1.2.3",
-    "boltz>=2.2.1",
+    "filelock>=3.13",
     "psutil>=7.2.2",
     "pandas==2.2.3",
 ]
 
 [project.optional-dependencies]
-boltz = ["boltz==2.2.1"]
+boltz = ["boltz==2.2.1", "biopython==1.84", "tmtools==0.2.0"]
 test = ["pytest>=8,<9"]
 ax = ["ax-platform==0.5.0"]
 

@@ -9,12 +9,8 @@ def suggest_sobol(state, *, initial_count: int, seed: int):
     Evaluation 1 is Sobol index 0, evaluation 2 is index 1, etc.
     """
 
-    if initial_count != 0:
-        raise ValueError(
-            "Paper Figure 5 Sobol reproduction expects initial_count=0"
-        )
-
-    sobol_index = state.used
+    # Shared designs contain a center followed by Sobol points.
+    sobol_index = state.used - (1 if initial_count else 0)
 
     x = sobol_points(
         state.dimension,

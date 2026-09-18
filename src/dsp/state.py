@@ -53,6 +53,14 @@ def process_alive(owner: dict) -> bool | None:
     """Verify the specific owning process, including boot and PID reuse protection."""
     if owner["host"] != socket.gethostname():
         return None
+    if platform.system() != "Linux":
+        try:
+            return (owner["boot"] == str(psutil.boot_time()) and
+                    owner["start"] == str(psutil.Process(owner["pid"]).create_time()))
+        except psutil.NoSuchProcess:
+            return False
+        except (psutil.AccessDenied, KeyError):
+            return None
     try:
         if owner.get("pid_namespace") != os.readlink("/proc/self/ns/pid"):
             return None
@@ -67,6 +75,19 @@ def process_alive(owner: dict) -> bool | None:
 
 
 def checked_result(result: dict, objective: str = DEFAULT_OBJECTIVE) -> dict:
+    if objective == "scalar":
+        result = {k: v for k, v in result.items() if k not in
+                  {"trial_id", "candidate_id", "status", "physical_call", "started", "completed", "owner"}}
+        if not isinstance(result.get("valid"), bool):
+            raise ValueError("Evaluator result needs boolean validity")
+        value = result.get("objective")
+        if result["valid"]:
+            if isinstance(value, bool) or not isinstance(value, (float, int)) or not math.isfinite(value):
+                raise ValueError("Valid evaluator objective must be finite")
+        else:
+            result["objective"] = None
+        json.dumps(result, allow_nan=False)
+        return result
     validate_objective(objective)
     result = {k:v for k,v in result.items() if k not in {"trial_id","candidate_id","status","physical_call","started","completed","owner"}}
     if not isinstance(result.get("valid"), bool):
@@ -87,7 +108,8 @@ def checked_result(result: dict, objective: str = DEFAULT_OBJECTIVE) -> dict:
 
 class OptimizationState:
     def __init__(self, directory: Path, *, dimension: int, budget: int, metadata: dict):
-        self.objective = validate_objective(metadata.get("objective", DEFAULT_OBJECTIVE))
+        objective = metadata.get("objective", DEFAULT_OBJECTIVE)
+        self.objective = objective if objective == "scalar" else validate_objective(objective)
         if dimension < 1 or budget < 1:
             raise ValueError("Positive dimension and budget required")
         self.directory, self.dimension, self.budget = Path(directory), dimension, budget
@@ -230,14 +252,14 @@ class OptimizationState:
                  **(json.loads(r["result"]) if r["result"] else {})} for r in rows]
 
     def observations(self):
-        complete = [t for t in self.trials() if t["status"] == "completed"]
+        complete = [t for t in self.trials() if t["status"] == "completed" and t.get("valid")]
         if not complete:
             return torch.empty((0,self.dimension), dtype=torch.float64), torch.empty((0,1), dtype=torch.float64)
         return (torch.stack([self.candidate(t["candidate_id"]) for t in complete]),
                 torch.tensor([[t["objective"]] for t in complete], dtype=torch.float64))
 
     def incumbent(self):
-        complete = [t for t in self.trials() if t["status"] == "completed"]
+        complete = [t for t in self.trials() if t["status"] == "completed" and t.get("valid")]
         return max(complete, key=lambda t:t["objective"]) if complete else None
 
     def set_setting(self, key: str, value):
@@ -251,12 +273,12 @@ class OptimizationState:
             if self.get_setting("stop_decision") is not None:
                 raise ValueError("Campaign already stopped")
             trials=self.trials()
-            if not trials or any(t["status"]!="completed" for t in trials):
+            if (not trials and self.objective != "scalar") or any(t["status"]!="completed" for t in trials):
                 raise ValueError("Cannot stop before initialization or while an evaluation is pending")
             valid=[t for t in trials if t["valid"]]
             best=max(valid,key=lambda t:t["objective"]) if valid else None
             result={**decision,"termination":"agent_stop","budget_used":self.used,"budget_remaining":self.remaining,
-                    "incumbent":{k:best[k] for k in ("trial_id","candidate_id","objective","tm","valid")} if best else None}
+                    "incumbent":{k:best[k] for k in ("trial_id","candidate_id","objective","tm","valid") if k in best} if best else None}
             self.set_setting("stop_decision",result)
         return result
 

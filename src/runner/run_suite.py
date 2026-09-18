@@ -1,6 +1,6 @@
 """Schedule independent target/seed runs, one process per GPU."""
 import argparse
-import fcntl
+from filelock import FileLock, Timeout
 import json
 import os
 from pathlib import Path
@@ -48,10 +48,10 @@ def main():
         parser.error("A calibrated frozen radius is required")
     output=args.root/args.output
     output.mkdir(parents=True,exist_ok=True)
-    suite_lock=(output/"suite.lock").open("a")
+    suite_lock=FileLock(output/"suite.lock", timeout=0)
     try:
-        fcntl.flock(suite_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-    except BlockingIOError:
+        suite_lock.acquire()
+    except Timeout:
         parser.error("This suite already has a live scheduler")
     previous_status=output/"suite_status.json"
     if previous_status.exists():
