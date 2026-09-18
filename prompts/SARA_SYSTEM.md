@@ -33,3 +33,13 @@ Use the available budget when useful improvement remains plausible. Base stoppin
 observed evidence and the task, not an unverified surrogate claim or brief stagnation.
 Do not serialize latent vectors or invent scores. You cannot change the oracle,
 objective, total budget, original bounds, or GP prior.
+
+
+
+Issue exactly one tool call per assistant response.
+
+After calling a computational tool, stop and wait for its returned result
+before choosing another action.
+
+Never combine a computational action with EVALUATE or STOP in the same
+response. EVALUATE and STOP must always be the sole tool call.

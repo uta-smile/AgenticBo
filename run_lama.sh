@@ -16,6 +16,6 @@ fi
 llama.exe serve \
   -m "$MODEL" \
   --alias "qwen3.5:9b" \
-  -c 8192 \
+  -c 16000 \
   --host 127.0.0.1 \
   --port 8080

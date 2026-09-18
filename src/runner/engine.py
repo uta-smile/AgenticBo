@@ -69,7 +69,9 @@ def _run_methods(*, directory: Path, box, generator=None, oracle=None, evaluator
             state.close()
     summary={"target_id":target_id,"seed":seed,"dimension":box.dimension,"initial":initial,"budget":budget,
              "methods":list(methods),"completed":all(r["completed"] for r in reports),
-             "shared_initial_physical_calls":initial,"shared_initial_sha256":initial_hash,
+             "shared_initial_physical_calls":initial,"shared_initial_sha256": (
+                None if method == "ax" else initial_hash
+            ),
              "total_physical_calls":initial+sum(r["physical_method_calls"] for r in reports)}
     summary["charged_method_evaluations"]=sum(r["budget_used"] for r in reports)
     (directory/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
@@ -120,15 +122,40 @@ def _run_method(state, method, context, box, generator, oracle, evaluator, save_
     initial, budget, seed = context["initial"], context["budget"], context["seed"]
     target_id, target_length = context["target_id"], context["target_length"]
     state.recover_interrupted()
-    if state.used==0 and initial:
-        state.import_initial(initial_x,initial_results,initial_hash)
-    if state.get_setting("initial_source_sha256")!=initial_hash:
-        raise ValueError("Method does not share the exact frozen initial evaluations")
-    if method=="agentic_dsp":
-        previous_identity=state.get_setting("controller_identity")
-        if previous_identity is not None and previous_identity!=controller_identity:
-            raise ValueError("Controller identity changed during an agentic run")
-        state.set_setting("controller_identity",controller_identity)
+    if method != "ax":
+        if state.used == 0 and initial:
+            state.import_initial(
+                initial_x,
+                initial_results,
+                initial_hash,
+            )
+
+        if (
+            state.get_setting("initial_source_sha256")
+            != initial_hash
+        ):
+            raise ValueError(
+                "Method does not share the exact frozen initial evaluations"
+            )
+
+    # Agentic DSP controller identity check.
+    if method == "agentic_dsp":
+        previous_identity = state.get_setting(
+            "controller_identity"
+        )
+
+        if (
+            previous_identity is not None
+            and previous_identity != controller_identity
+        ):
+            raise ValueError(
+                "Controller identity changed during an agentic run"
+            )
+
+        state.set_setting(
+            "controller_identity",
+            controller_identity,
+        )
     backend=OptimizationBackend(state,box,generator,oracle,dsp=method!="vanilla_gp",seed=seed,
         acquisition_settings=acquisition_settings,fit_maxiter=fit_maxiter,evaluator=evaluator,save_gp=save_gp)
     ax_session=None

@@ -25,7 +25,7 @@ class SaraClient:
     @property
     def identity(self):
         result={"model":self.model,"endpoint_sha256":hashlib.sha256(self.base_url.encode()).hexdigest(),
-                "temperature":0,"seed_requested":True,"max_tokens":1024}
+                "temperature":0,"seed_requested":True,"max_tokens":3024}
         if self.runtime_identity is not None:
             result["runtime"]=self.runtime_identity
         return result
@@ -52,7 +52,7 @@ class SaraClient:
             headers["Authorization"]=f"Bearer {self.api_key}"
         response=requests.post(self.base_url+"/chat/completions",headers=headers,timeout=self.timeout,json={
             "model":self.model,"messages":messages,"tools":tools,"tool_choice":"required",
-            "temperature":0,"seed":seed,"parallel_tool_calls":False,"max_tokens":1024})
+            "temperature":0,"seed":seed,"parallel_tool_calls":False,"max_tokens":3024})
         # Avoid writing arbitrary server response bodies or request headers to traces.
         if not response.ok:
             raise RuntimeError(f"Sara endpoint returned HTTP {response.status_code}")

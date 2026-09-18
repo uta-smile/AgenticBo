@@ -1,11 +1,11 @@
 # Paper-aligned subset, not an exact reproduction of Sara + lenz.
 problems: [branin_2d, ackley_10d, ackley_20d]
-seeds: [0, 1, 2]
+seeds: [32]
 methods: [sobol, ax, agentic_dsp]
 output: outputs/benchmark
 budget: null  # Per-problem defaults: 50, 150, 200.
 threads: 4
 fit_maxiter: 80
 acquisition: {raw_samples: 256, num_restarts: 8, maxiter: 60}
-max_tools: 4
+max_rounds: 20
 save_gp: false

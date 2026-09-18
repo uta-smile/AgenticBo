@@ -11,7 +11,7 @@ device: cuda:0
 threads: 4
 fit_maxiter: 100
 acquisition: {raw_samples: 1024, num_restarts: 16, maxiter: 100}
-max_tools: 4
+max_rounds: 20
 save_gp: false
 generator:
   checkpoint: .cache/boltz/boltz2_conf.ckpt
