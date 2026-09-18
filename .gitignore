@@ -1,0 +1,33 @@
+.venv/
+.uv-cache/
+.cache/
+.git-local/
+.git-repo/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.env
+# Experiment outputs can contain logs, databases, generated structures, and
+# copied model inputs. Keep the directory itself without committing its runs.
+outputs/*
+!outputs/.gitkeep
+
+# Local model weights, checkpoints, archives, and other large binary assets.
+*.ckpt
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.tar
+*.tar.gz
+*.zip
+*.7z
+*.npz
+*.npy
+*.pkl
+*.pickle
+inputs/*
+!inputs/README.md
+reference/*
+!reference/README.md

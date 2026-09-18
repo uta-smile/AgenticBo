@@ -1,0 +1,24 @@
+targets: 5
+seeds: [0, 1, 2]
+budget: 80
+initial: 16
+methods: [sobol, vanilla_gp, dsp_gp, agentic_dsp]
+objective: sqrt_tm_times_lddt
+manifest: data/targets/manifest.csv
+calibration:
+  split: dev
+  radii: [0.1, 0.25, 0.5, 1.0, 2.0]
+  samples_per_radius: 30
+  frozen_radius: null
+acquisition:
+  name: log_ei
+  q: 1
+  raw_samples: 1024
+  num_restarts: 16
+agent:
+  base_url_env: SARA_BASE_URL
+  model_env: SARA_MODEL
+  api_key_env: SARA_API_KEY
+  # The runner defaults this to the total evaluation budget unless overridden
+  # with --max-computational-tools.
+  max_computational_tools: null

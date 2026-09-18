@@ -1,0 +1,14 @@
+profile: four_gtx_titan_x
+gpu_ids: [0, 1, 2, 3]
+observed_driver: 465.19.01
+observed_memory_mib: [12210, 12212, 12212, 12212]
+compute_capability: [5, 2]
+torch_version: 2.6.0
+torch_index: https://download.pytorch.org/whl/cu118
+generator_precision: 32-true
+generator_use_kernels: false
+generator_compile: false
+gp_device: cpu
+gp_dtype: float64
+# Suite scheduling: independent target/seed runs, one process per GPU.
+# Memory is per GPU. Verify one real decode before launching four workers.

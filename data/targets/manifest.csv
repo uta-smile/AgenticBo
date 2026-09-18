@@ -1,0 +1,2 @@
+target_id,fasta,reference,chain_id,reference_chain_id,length,split,msa,provenance
+22PE,inputs/22PE.fasta,reference/22PE.cif,A,A,349,test,,User supplied PDB 22PE; full sequence generation; resolved reference positions 3-344 scored in resolved mode

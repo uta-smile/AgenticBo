@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-protein-dsp-bo"
+version = "0.1.0"
+description = "Direct native-noise protein target matching with frozen Boltz2"
+requires-python = ">=3.10,<3.13"
+dependencies = ["numpy>=1.26,<2", "PyYAML==6.0.2", "torch==2.6.0", "biopython==1.84", "scipy==1.13.1", "tmtools==0.2.0", "botorch==0.13.0", "matplotlib==3.9.4"]
+
+[project.optional-dependencies]
+boltz = ["boltz==2.2.1"]
+test = ["pytest>=8,<9"]
+ax = ["ax-platform==0.5.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

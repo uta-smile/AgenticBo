@@ -1,0 +1,16 @@
+backend: boltz2
+boltz_version: 2.2.1
+cache: .cache/boltz
+checkpoint: .cache/boltz/boltz2_conf.ckpt
+precision: 32-true
+use_kernels: false
+compile: false
+diffusion_samples: 1
+max_parallel_samples: 1
+recycling_steps: 3
+sampling_steps: 200
+sampler_seed: 1729
+msa_mode: local_or_single_sequence
+latent: initial_standard_normal_atom_noise
+# All entries of [1, padded_atoms, 3], including native padding, are searchable.
+# Subsequent sampler draws are fixed by sampler_seed; weights stay frozen.

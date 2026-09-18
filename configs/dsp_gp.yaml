@@ -1,0 +1,21 @@
+kernel: rbf
+ard: full_native_dimension
+lengthscale_prior:
+  loc: sqrt(2) + 0.5 * log(D)
+  scale: sqrt(3)
+  minimum: 0.025
+outputscale: 1.0
+learn_outputscale: false
+standardize_outcome: true
+normalize_input: fixed_unit_box
+noise_prior:
+  loc: -4.0
+  scale: 1.0
+  minimum: 0.0001
+dtype: float64
+device: cpu
+fit_maxiter: 100
+vanilla_ablation:
+  # Same RBF, constraints, likelihood, transforms and optimizer; omit D scaling.
+  lengthscale_loc: sqrt(2)
+  lengthscale_scale: sqrt(3)

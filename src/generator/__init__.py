@@ -1,0 +1,1 @@
+"""Frozen protein-generator adapters."""
